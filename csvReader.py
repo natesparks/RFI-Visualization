@@ -55,7 +55,7 @@ else :
 	sys.exit("Error - failed to connect to https://celestrak.com/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
 
 #read in TLE data from celestrak
-TLEarray = response.text.splitlines()
+TLEarray = response.text.splitlines() #raw text data
 print("Reading TLE data from celestrak.com...")
 
 #parse the TLE for each satellite_id and map each satellite_id to its TLE
@@ -66,9 +66,9 @@ for i in range(len(TLEarray)) :
     if ("STARLINK-" not in satName) : #skip other data fields besides name
         continue
 
-    TLE_sat_id = satName[9:] #extract numbers from STARLINK-XXXX
-    if (TLE_sat_id in satellite_idArray) :
-        TLE_map[TLE_sat_id] = TLEarray[i+1] + " \n" + TLEarray[i+2] #2 lines after the name are the TLE
+    id_num = satName[9:] #extract numbers from STARLINK-XXXX
+    if (id_num in satellite_idArray) :
+        TLE_map[id_num] = satName + '\n' + TLEarray[i+1] + " \n" + TLEarray[i+2] #two lines after the name are the two line element set
         uniqueIDcount += 1
 print("Acquired TLE for", uniqueIDcount, "unique satellite IDs out of", len(satellite_idArray), "total satellite IDs in telemetry file")
 
