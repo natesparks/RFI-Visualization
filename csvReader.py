@@ -3,6 +3,11 @@ import sys
 import os.path
 import requests as req 
 
+class FieldColPair :
+    def __init__(self, field, colnum) :
+        self.field = field
+        self.colnum = colnum
+
 #check for number of arguments
 if (len(sys.argv) != 2) :
 	sys.exit("Usage: python3 csvReader.py <filepath>")
@@ -14,27 +19,67 @@ if (os.path.exists(filepath) is False) :
 if (filepath.endswith(".csv") is False) :
 	sys.exit("The provided file is not a .csv file: " + filepath)
 
+#start reading csv file
+print("Preparing to read: " + filepath)
 with open(filepath) as csvFile:
     csvReader = csv.reader(csvFile, delimiter = ',')
 
     #get column headers
     headers = next(csvReader)
 
+    #data sets
     timeArray = []
     rx_channelArray = []
     tx_channelArray = []
     satellite_idArray = []
+    timeMatch = FieldColPair("timestamp (GMT+00:00 UTC)", 0)
+    rxMatch = FieldColPair("rx_channel_id", 0)
+    txMatch = FieldColPair("tx_channel_id", 0)
+    sat_idMatch = FieldColPair("satellite_id", 0)
+    fieldColPairs = [timeMatch, rxMatch, txMatch, sat_idMatch]
+    #attempt to match data fields to column headers
+    for columnNum in range(len(headers)) :
+        for Pair in fieldColPairs :
+            if (Pair.field in headers[columnNum]) :
+                Pair.colnum = columnNum
 
-    linenum = 1
+    #display the matches
+    print("Confirm the following data fields:")
+    for Pair in fieldColPairs :
+        print("Reading in column <" + headers[Pair.colnum] + "> for field: <" + Pair.field + ">")
+
+    #prompt user to manually change matches
+    answer = input("Are the above fields correct? y/n ")
+    if (answer == "n") :
+        print("Update fields with the following format: update <field> <zero-indexed column number>")
+        print("Range of valid column numbers is 0 to", len(headers)-1)
+        print("Enter 'done' command when all fields are updated.")
+        while (1) :
+            answer = input()
+            if (answer == "done") : break 
+            command = answer.split()  
+            if (len(command) == 3 and command[0] == "update" and (int(command[2]) in range(len(headers)))) : 
+                print("command valid")
+                for Pair in fieldColPairs :
+                    if (Pair.field == command[1]) :
+                        Pair.colnum = int(command[2]) #update colnum of Pair corresponding to entered field
+            else :
+                print("command invalid")
+    #display new matches
+    for Pair in fieldColPairs :
+        print("Reading in column <" + headers[Pair.colnum] + "> for field: <" + Pair.field + ">")
+
+
 
     #parse data lines
+    linenum = 1
     for row in csvReader :
         if (linenum == 1) :
             date = row[0].split()[0]
-        time = row[0].split()[1] #leave as strings
-        rx_channel = row[4]  
-        tx_channel = row[5]
-        satellite_id = row[6]
+        time = row[timeMatch.colnum].split()[1] #leave as strings
+        rx_channel = row[rxMatch.colnum]  
+        tx_channel = row[txMatch.colnum]
+        satellite_id = row[sat_idMatch.colnum]
 
         #store data
         timeArray.append(time)
