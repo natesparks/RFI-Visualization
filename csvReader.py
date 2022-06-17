@@ -46,7 +46,7 @@ with open(filepath) as csvFile:
     #display the matches
     print("Confirm the following data fields:")
     for Pair in fieldColPairs :
-        print("Reading in column <" + headers[Pair.colnum] + "> for field: <" + Pair.field + ">")
+        print("Matched column <" + headers[Pair.colnum] + "> to field: <" + Pair.field + ">")
 
     #prompt user to manually change matches
     answer = input("Are the above fields correct? y/n ")
@@ -91,22 +91,39 @@ with open(filepath) as csvFile:
 
 print("Read in " + str(linenum) + " lines from " + filepath )
 
-#parse the TLE for each satellite_id and map each satellite_id to its TLE
-def TLEMapper(satellite_idArray, raw_TLEs, TLE_map) :
+#function to parse the raw TLEs for each satellite_id and map each satellite_id to its TLE
+def TLEMapper(satellite_idArray, raw_TLEs, TLE_map, idMode) :
     uniqueIDcount = 0
-    for i in range(len(raw_TLEs)) :
-        satName = raw_TLEs[i].strip() #remove whitespace
-        if ("STARLINK-" not in satName) : #skip other data fields besides name
-            continue
+    if (idMode == "sat_id") :
+        for i in range(len(raw_TLEs)) :
+            satName = raw_TLEs[i].strip() #remove whitespace
+            if ("STARLINK-" not in satName) : #skip other data fields besides name
+                continue
 
-        id_num = satName[9:] #extract numbers from STARLINK-XXXX
-        if (id_num in satellite_idArray) :
-            TLE_map[id_num] = satName + '\n' + raw_TLEs[i+1] + " \n" + raw_TLEs[i+2] #two lines after the name are the two line element set
-            uniqueIDcount += 1
+            id_num = satName[9:] #extract numbers from STARLINK-XXXX
+            if (id_num in satellite_idArray) :
+                TLE_map[id_num] = satName + '\n' + raw_TLEs[i+1] + " \n" + raw_TLEs[i+2] #two lines after the name are the two line element set
+                uniqueIDcount += 1
+    elif (idMode == "NORAD") :
+        for i, line in enumerate(raw_TLEs) :
+            line = line.split() #split the line to access indiv elements (line num and NORAD)
+            if (line[0] != "1") : continue #skip lines that don't contain NORAD id (aka not line 1)
+            NORAD_id = line[1]
+            if ("U" in NORAD_id) :
+                NORAD_id = NORAD_id[:-1] #strip U from back of NORAD id
+
+            id_num = NORAD_satid_map[NORAD_id] #get corresponding sat_id from NORAD id
+            if (id_num in satellite_idArray and id_num not in TLE_map.keys()) :
+                TLE_map[id_num] = "STARLINK-" + str(id_num) + '\n' + raw_TLEs[i] + " \n" + raw_TLEs[i+1] #two lines after the name are the two line element set
+                uniqueIDcount += 1
+
+
     print("Acquired TLE for", uniqueIDcount, "unique satellite IDs out of", len(satellite_idArray), "total satellite IDs in telemetry file")
 
+#QUERY TLE DATABASES AND MAP sat ids to corresponding TLEs
 
 #CELESTRAK UNCLASSIFIED
+unclassified_TLE_map = {} 
 response = req.get("https://celestrak.com/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
 if (response.status_code == 200) :
     print("Successfully connected to https://celestrak.com/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
@@ -114,10 +131,10 @@ else :
 	sys.exit("Error - failed to connect to https://celestrak.com/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
 #read in TLE data from celestrak
 print("Reading unclassified TLE data from celestrak.com...")
-unclassified_TLE_map = {} 
-TLEMapper(satellite_idArray, response.text.splitlines(), unclassified_TLE_map)
+TLEMapper(satellite_idArray, response.text.splitlines(), unclassified_TLE_map, "sat_id")
 
 #CELESTRAK CLASSIFIED
+classified_TLE_map = {} 
 response = req.get("http://www.celestrak.com/NORAD/elements/supplemental/starlink.txt")
 if (response.status_code == 200) :
     print("Successfully connected to http://www.celestrak.com/NORAD/elements/supplemental/starlink.txt")
@@ -125,20 +142,48 @@ else :
 	sys.exit("Error - failed to connect to http://www.celestrak.com/NORAD/elements/supplemental/starlink.txt")
 #read in TLE data from celestrak
 print("Reading classified TLE data from celestrak.com...")
-classified_TLE_map = {} 
-TLEMapper(satellite_idArray, response.text.splitlines(), classified_TLE_map)
+TLEMapper(satellite_idArray, response.text.splitlines(), classified_TLE_map, "sat_id")
 
-#STAR TRACK
-#get NORAD_CAT_ID from celestrak
+#SPACE TRACK
+spacetrack_TLE_map = {} 
+#prompt user to decide whether to requery Space Track for the historical TLEs
+answer = ""
+while (answer != "y" and answer != "n") :
+    answer = input("Requery Space Track for the historical TLEs? y/n ")
+NORAD_satid_map = {}
+#get NORAD_CAT_ID from unclassified celestrak data and map to sat_id
+print("Pulling NORAD IDs from celestrak data...")
 for sat_id in unclassified_TLE_map :
     TLE = unclassified_TLE_map[sat_id].split()
     NORAD_CAT_ID = TLE[2][:-1] 
-#use NORAD_CAT_ID to query star track
+    NORAD_satid_map[NORAD_CAT_ID] = sat_id
+if (answer == "y") :
+    #use NORAD_CAT_IDs to query Space Track
+    NORAD_string = ",".join(NORAD_satid_map.keys())
+    queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~2022-05-15/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
+    response = req.get(queryText)
+    if (response.status_code == 200) :
+        print("Successfully connected to https://www.space-track.org")
+    else :
+        sys.exit("Error - failed to connect to https://www.space-track.org")
+    #read in TLE data from celestrak
+    print("Reading TLE data from space-track.org...")
+    TLEMapper(satellite_idArray, response.text.splitlines(), spacetrack_TLE_map, "NORAD")
+else :
+    #use stored historical TLEs from last Space Track query
+    with open("Historical_TLEs.txt") as ifile :
+        TLEMapper(satellite_idArray, ifile.read().splitlines(), spacetrack_TLE_map, "NORAD")
+    
+
+#Verify the completeness of each mapping?
+
 
 #iterate through each (time, satellite_id) pair and map lookup the TLE
-for i in range(len(satellite_idArray)) :
-    tleText = unclassified_TLE_map[satellite_idArray[i]]
+for i, sat_id in enumerate(satellite_idArray) :
+    unclassified_TLE = unclassified_TLE_map[sat_id]
+    classified_TLE = unclassified_TLE_map[sat_id]
+    spacetrack_TLE = unclassified_TLE_map[sat_id]
     time = timeArray[i]
-    #use the TLE and time to calculate position 
+    #use the TLE and time to calculate azimuth, elevation, and distance
     
 
