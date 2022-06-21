@@ -2,6 +2,7 @@ import csv
 import sys
 import os.path
 import requests as req 
+import time
 
 class FieldColPair :
     def __init__(self, field, colnum) :
@@ -76,20 +77,20 @@ with open(filepath) as csvFile:
     for row in csvReader :
         if (linenum == 1) :
             date = row[0].split()[0]
-        time = row[timeMatch.colnum].split()[1] #leave as strings
+        scanTime = row[timeMatch.colnum].split()[1] #leave as strings
         rx_channel = row[rxMatch.colnum]  
         tx_channel = row[txMatch.colnum]
         satellite_id = row[sat_idMatch.colnum]
 
         #store data
-        timeArray.append(time)
+        timeArray.append(scanTime)
         rx_channelArray.append(rx_channel)
         tx_channelArray.append(tx_channel)
         satellite_idArray.append(satellite_id)
 
         linenum += 1
 
-print("Read in " + str(linenum) + " lines from " + filepath )
+print(f"Read in {linenum} lines from {filepath}")
 
 #function to parse the raw TLEs for each satellite_id and map each satellite_id to its TLE
 def TLEMapper(satellite_idArray, raw_TLEs, TLE_map, idMode) :
@@ -100,7 +101,8 @@ def TLEMapper(satellite_idArray, raw_TLEs, TLE_map, idMode) :
             if ("STARLINK-" not in satName) : #skip other data fields besides name
                 continue
 
-            id_num = satName[9:] #extract numbers from STARLINK-XXXX
+            # id_num = satName[9:] #extract numbers from STARLINK-XXXX
+            id_num = satName[9:13] #extract numbers from STARLINK-XXXX
             if (id_num in satellite_idArray) :
                 TLE_map[id_num] = satName + '\n' + raw_TLEs[i+1] + " \n" + raw_TLEs[i+2] #two lines after the name are the two line element set
                 uniqueIDcount += 1
@@ -159,31 +161,47 @@ for sat_id in unclassified_TLE_map :
     NORAD_satid_map[NORAD_CAT_ID] = sat_id
 if (answer == "y") :
     #use NORAD_CAT_IDs to query Space Track
-    NORAD_string = ",".join(NORAD_satid_map.keys())
+    NORAD_string = ", ".join(NORAD_satid_map.keys())
     queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~2022-05-15/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
+    
+    #attempt connection to space-track.org
     response = req.get(queryText)
     if (response.status_code == 200) :
         print("Successfully connected to https://www.space-track.org")
     else :
         sys.exit("Error - failed to connect to https://www.space-track.org")
-    #read in TLE data from celestrak
+    #read in TLE data from space-track
     print("Reading TLE data from space-track.org...")
     TLEMapper(satellite_idArray, response.text.splitlines(), spacetrack_TLE_map, "NORAD")
+    #store query response from space-track
+    with open("Historical_TLEs.txt") as ofile :
+        ofile.write(response.text)
 else :
     #use stored historical TLEs from last Space Track query
     with open("Historical_TLEs.txt") as ifile :
         TLEMapper(satellite_idArray, ifile.read().splitlines(), spacetrack_TLE_map, "NORAD")
     
 
-#Verify the completeness of each mapping?
+#Verify the completeness of each mapping
+missedCount = 0
+for i, sat_id in enumerate(satellite_idArray) :
+    if sat_id not in unclassified_TLE_map : 
+        print(f"{sat_id} not found in unclassified_TLE_map")
+        missedCount += 1
+    if sat_id not in classified_TLE_map : 
+        print(f"{sat_id} not found in classified_TLE_map")
+        missedCount += 1
+    if sat_id not in spacetrack_TLE_map :
+        print(f"{sat_id} not found in spacetrack_TLE_map")
+        missedCount += 1
+    
 
 
 #iterate through each (time, satellite_id) pair and map lookup the TLE
 for i, sat_id in enumerate(satellite_idArray) :
     unclassified_TLE = unclassified_TLE_map[sat_id]
-    classified_TLE = unclassified_TLE_map[sat_id]
-    spacetrack_TLE = unclassified_TLE_map[sat_id]
+    classified_TLE = classified_TLE_map[sat_id]
+    spacetrack_TLE = spacetrack_TLE_map[sat_id]
     time = timeArray[i]
     #use the TLE and time to calculate azimuth, elevation, and distance
-    
 
