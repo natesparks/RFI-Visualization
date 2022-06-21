@@ -3,6 +3,11 @@ import sys
 import os.path
 import requests as req 
 import time
+import datetime
+import numpy as np
+from astropy.coordinates import EarthLocation
+from astropy import time
+from pycraf import satellite
 
 class FieldColPair :
     def __init__(self, field, colnum) :
@@ -195,13 +200,37 @@ for i, sat_id in enumerate(satellite_idArray) :
         print(f"{sat_id} not found in spacetrack_TLE_map")
         missedCount += 1
     
+#Use pycraf satellite library to calculate satellite positions
+# gbt location
+gbt_location = EarthLocation.of_site('gbt')
+print(f"gbt_location: {gbt_location}")
 
+# create a SatelliteObserver instance
+sat_obs = satellite.SatelliteObserver(gbt_location)
+
+dt = datetime.datetime(2022, 5, 15, 16, 2, 0) #time of day
+obstime = time.Time(dt)
 
 #iterate through each (time, satellite_id) pair and map lookup the TLE
-for i, sat_id in enumerate(satellite_idArray) :
-    unclassified_TLE = unclassified_TLE_map[sat_id]
-    classified_TLE = classified_TLE_map[sat_id]
-    spacetrack_TLE = spacetrack_TLE_map[sat_id]
-    time = timeArray[i]
-    #use the TLE and time to calculate azimuth, elevation, and distance
+with open("sat_positions.csv", "w") as ofile :
+    csv_writer = csv.writer(ofile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #headers
+    csv_writer.writerow(['sat_id', 'unclassified_az', 'unclassified_el', 'unclassified_dist', 'classified_az', 'classified_el', 'classified_dist', 'spacetrack_az', 'spacetrack_el', 'spacetrack_dist',])
+    for i, sat_id in enumerate(satellite_idArray) :
+        unclassified_TLE = unclassified_TLE_map[sat_id]
+        classified_TLE = classified_TLE_map[sat_id]
+        spacetrack_TLE = spacetrack_TLE_map[sat_id]
+        #use exact time for highest accuracy position calculations
+        # time = timeArray[i]
 
+        #use the TLE and time to calculate azimuth, elevation, and distance for each TLE
+        print(f"Calculating position of STARLINK-{sat_id}")
+        satname, sat = satellite.get_sat(unclassified_TLE)
+        unclassified_az, unclassified_el, unclassified_dist = sat_obs.azel_from_sat(sat, obstime)  
+        satname, sat = satellite.get_sat(unclassified_TLE)
+        classified_az, classified_el, classified_dist = sat_obs.azel_from_sat(sat, obstime)  
+        satname, sat = satellite.get_sat(unclassified_TLE)
+        spacetrack_az, spacetrack_el, spacetrack_dist = sat_obs.azel_from_sat(sat, obstime)  
+
+        #write position data to csv
+        csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist,])
