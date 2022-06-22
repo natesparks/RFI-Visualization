@@ -82,7 +82,11 @@ with open(filepath) as csvFile:
     linenum = 1
     for row in csvReader :
         if (linenum == 1) :
-            date = row[0].split()[0]
+            scanDate = row[0].split()[0]
+            scanYear = ("%04d" % int(scanDate.split("/")[2]))
+            scanMonth = ("%02d" % int(scanDate.split("/")[0]))
+            scanDay = ("%02d" % int(scanDate.split("/")[1]))
+            print(scanMonth, scanDay, scanYear)
         scanTime = row[timeMatch.colnum].split()[1] #leave as strings
         rx_channel = row[rxMatch.colnum]  
         tx_channel = row[txMatch.colnum]
@@ -168,7 +172,7 @@ for sat_id in unclassified_TLE_map :
 #use NORAD_CAT_IDs to query Space Track
 if (answer == "y") :
     NORAD_string = ", ".join(NORAD_satid_map.keys())
-    queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~2022-05-15/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
+    queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~{scanYear}-{scanMonth}-{scanDay}/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
 
     #get credentials from space-track.ini    
     config = configparser.ConfigParser()
