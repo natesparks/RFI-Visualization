@@ -2,6 +2,7 @@ import csv
 import sys
 import os.path
 import requests as req 
+import configparser
 import time
 import datetime
 import numpy as np
@@ -164,25 +165,44 @@ for sat_id in unclassified_TLE_map :
     TLE = unclassified_TLE_map[sat_id].split()
     NORAD_CAT_ID = TLE[2][:-1] 
     NORAD_satid_map[NORAD_CAT_ID] = sat_id
+#use NORAD_CAT_IDs to query Space Track
 if (answer == "y") :
-    #use NORAD_CAT_IDs to query Space Track
     NORAD_string = ", ".join(NORAD_satid_map.keys())
     queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~2022-05-15/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
-    
-    #attempt connection to space-track.org
-    response = req.get(queryText)
-    if (response.status_code == 200) :
-        print("Successfully connected to https://www.space-track.org")
-    else :
-        sys.exit("Error - failed to connect to https://www.space-track.org")
-    #read in TLE data from space-track
-    print("Reading TLE data from space-track.org...")
-    TLEMapper(satellite_idArray, response.text.splitlines(), spacetrack_TLE_map, "NORAD")
-    #store query response from space-track
-    with open("Historical_TLEs.txt") as ofile :
-        ofile.write(response.text)
+
+    #get credentials from space-track.ini    
+    config = configparser.ConfigParser()
+    config.read("./space-track.ini")
+    configUsr = config.get("configuration", "username")
+    configPwd = config.get("configuration", "password")
+    siteCred = {"identity": configUsr, "password": configPwd}
+    #attempt to connect to space-track.org
+    with req.Session() as session :
+        #send credentials over POST request
+        response = session.post("https://www.space-track.org/ajaxauth/login", data=siteCred)
+        #successful login 
+        if (response.status_code == 200) :
+            response = session.get(queryText)
+            #successful GET
+            if (response.status_code == 200) :
+                print("Successfully connected to https://www.space-track.org")
+                TLEMapper(satellite_idArray, response.text.splitlines(), spacetrack_TLE_map, "NORAD")
+                #store query response from space-track
+                print("Storing query response...")
+                with open("Historical_TLEs.txt", "w") as ofile :
+                    ofile.write(response.text)
+            #failed GET
+            else :
+                print("Error - failed to get data from https://www.space-track.org. Substituting space-track TLEs from most recent query.")
+            #read in TLE data from space-track
+        #failed login
+        else :
+            print("Error - failed login attempt to https://www.space-track.org. Substituting space-track TLEs from most recent query.")
+
+
+
+#use stored historical TLEs from last Space Track query
 else :
-    #use stored historical TLEs from last Space Track query
     with open("Historical_TLEs.txt") as ifile :
         TLEMapper(satellite_idArray, ifile.read().splitlines(), spacetrack_TLE_map, "NORAD")
     
