@@ -82,18 +82,17 @@ with open(filepath) as csvFile:
     linenum = 1
     for row in csvReader :
         if (linenum == 1) :
-            scanDate = row[0].split()[0]
-            scanYear = ("%04d" % int(scanDate.split("/")[2]))
-            scanMonth = ("%02d" % int(scanDate.split("/")[0]))
-            scanDay = ("%02d" % int(scanDate.split("/")[1]))
-            print(scanMonth, scanDay, scanYear)
-        scanTime = row[timeMatch.colnum].split()[1] #leave as strings
+            satDate = row[0].split()[0]
+            satYear = ("%04d" % int(satDate.split("/")[2]))
+            satMonth = ("%02d" % int(satDate.split("/")[0]))
+            satDay = ("%02d" % int(satDate.split("/")[1]))
+        satTime = row[timeMatch.colnum].split()[1] #leave as strings
         rx_channel = row[rxMatch.colnum]  
         tx_channel = row[txMatch.colnum]
         satellite_id = row[sat_idMatch.colnum]
 
         #store data
-        timeArray.append(scanTime)
+        timeArray.append(satTime)
         rx_channelArray.append(rx_channel)
         tx_channelArray.append(tx_channel)
         satellite_idArray.append(satellite_id)
@@ -172,7 +171,7 @@ for sat_id in unclassified_TLE_map :
 #use NORAD_CAT_IDs to query Space Track
 if (answer == "y") :
     NORAD_string = ", ".join(NORAD_satid_map.keys())
-    queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~{scanYear}-{scanMonth}-{scanDay}/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
+    queryText = f"https://www.space-track.org/basicspacedata/query/class/tle_publish/PUBLISH_EPOCH/~~{satYear}-{satMonth}-{satDay}/NORAD_CAT_ID/{NORAD_string}/orderby/NORAD_CAT_ID asc/format/tle/emptyresult/show"
 
     #get credentials from space-track.ini    
     config = configparser.ConfigParser()
@@ -232,8 +231,6 @@ print(f"gbt_location: {gbt_location}")
 # create a SatelliteObserver instance
 sat_obs = satellite.SatelliteObserver(gbt_location)
 
-dt = datetime.datetime(2022, 5, 15, 16, 2, 0) #time of day
-obstime = time.Time(dt)
 
 #iterate through each (time, satellite_id) pair and map lookup the TLE
 with open("sat_positions.csv", "w") as ofile :
@@ -244,11 +241,16 @@ with open("sat_positions.csv", "w") as ofile :
         unclassified_TLE = unclassified_TLE_map[sat_id]
         classified_TLE = classified_TLE_map[sat_id]
         spacetrack_TLE = spacetrack_TLE_map[sat_id]
-        #use exact time for highest accuracy position calculations
-        # time = timeArray[i]
+        #use minute by minute time for highest accuracy position calculations
+        satTime = timeArray[i]
+        satHour = int(satTime.split(":")[0]) + 12 #assume PM time
+        satMinute = int(satTime.split(":")[1])
+        satSecond = 15 * (i % 4) #15 second intervals
+        dt = datetime.datetime(int(satYear), int(satMonth), int(satDay), satHour, satMinute, satSecond) #time of day
+        obstime = time.Time(dt)
 
-        #use the TLE and time to calculate azimuth, elevation, and distance for each TLE
-        print(f"Calculating position of STARLINK-{sat_id}")
+        #use the TLE and time to calculate azimuth, elevation, and distance using each TLE
+        print(f"Calculating position of STARLINK-{sat_id} at {satTime}")
         satname, sat = satellite.get_sat(unclassified_TLE)
         unclassified_az, unclassified_el, unclassified_dist = sat_obs.azel_from_sat(sat, obstime)  
         satname, sat = satellite.get_sat(unclassified_TLE)
