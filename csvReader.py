@@ -246,14 +246,14 @@ with open("sat_positions.csv", "w") as ofile :
         spacetrack_TLE = spacetrack_TLE_map[sat_id]
         #use minute by minute time for highest accuracy position calculations
         satTime = timeArray[i]
-        satHour = int(satTime.split(":")[0]) + 12 #assume PM time
+        satHour = int(satTime.split(":")[0])  #UTC time
         satMinute = int(satTime.split(":")[1])
         satSecond = 15 * (i % 4) #15 second intervals
         dt = datetime.datetime(int(satYear), int(satMonth), int(satDay), satHour, satMinute, satSecond) #time of day
         obstime = time.Time(dt)
 
         #use the TLE and time to calculate azimuth, elevation, and distance using each TLE
-        print(f"Calculating position of STARLINK-{sat_id} at {satTime}")
+        print(f"Calculating position of STARLINK-{sat_id} at {satTime} UTC")
         satname, sat = satellite.get_sat(unclassified_TLE)
         unclassified_az, unclassified_el, unclassified_dist = sat_obs.azel_from_sat(sat, obstime)  
         satname, sat = satellite.get_sat(classified_TLE)
@@ -261,10 +261,10 @@ with open("sat_positions.csv", "w") as ofile :
         satname, sat = satellite.get_sat(spacetrack_TLE)
         spacetrack_az, spacetrack_el, spacetrack_dist = sat_obs.azel_from_sat(sat, obstime)  
 
-        #satellite 
+        #satellite coordinates
         az2 = spacetrack_az
         el2 = spacetrack_el
-        theta_offset = np.arccos(np.sin(el1) * np.sin(el2) + np.cos(el1) * np.cos(el2) * np.cos(az1 - az2))
+        theta_offset = (np.arccos(np.sin(el1) * np.sin(el2) + np.cos(el1) * np.cos(el2) * np.cos(az1 - az2))).to(u.degree)
 
         #write position data to csv
         csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist, theta_offset])
