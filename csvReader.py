@@ -8,6 +8,7 @@ import datetime
 import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy import time
+from astropy import units as u
 from pycraf import satellite
 
 class FieldColPair :
@@ -201,9 +202,6 @@ if (answer == "y") :
         #failed login
         else :
             print("Error - failed login attempt to https://www.space-track.org. Substituting space-track TLEs from most recent query.")
-
-
-
 #use stored historical TLEs from last Space Track query
 else :
     with open("Historical_TLEs.txt") as ifile :
@@ -236,7 +234,12 @@ sat_obs = satellite.SatelliteObserver(gbt_location)
 with open("sat_positions.csv", "w") as ofile :
     csv_writer = csv.writer(ofile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     #headers
-    csv_writer.writerow(['sat_id', 'unclassified_az', 'unclassified_el', 'unclassified_dist', 'classified_az', 'classified_el', 'classified_dist', 'spacetrack_az', 'spacetrack_el', 'spacetrack_dist',])
+    csv_writer.writerow(['sat_id', 'unclassified_az', 'unclassified_el', 'unclassified_dist', 'classified_az', 'classified_el', 'classified_dist', 'spacetrack_az', 'spacetrack_el', 'spacetrack_dist', 'theta_offset'])
+
+    #gbt pointing
+    az1 = 360.0 * u.deg
+    el1 = 78.0 * u.deg
+
     for i, sat_id in enumerate(satellite_idArray) :
         unclassified_TLE = unclassified_TLE_map[sat_id]
         classified_TLE = classified_TLE_map[sat_id]
@@ -253,10 +256,15 @@ with open("sat_positions.csv", "w") as ofile :
         print(f"Calculating position of STARLINK-{sat_id} at {satTime}")
         satname, sat = satellite.get_sat(unclassified_TLE)
         unclassified_az, unclassified_el, unclassified_dist = sat_obs.azel_from_sat(sat, obstime)  
-        satname, sat = satellite.get_sat(unclassified_TLE)
+        satname, sat = satellite.get_sat(classified_TLE)
         classified_az, classified_el, classified_dist = sat_obs.azel_from_sat(sat, obstime)  
-        satname, sat = satellite.get_sat(unclassified_TLE)
+        satname, sat = satellite.get_sat(spacetrack_TLE)
         spacetrack_az, spacetrack_el, spacetrack_dist = sat_obs.azel_from_sat(sat, obstime)  
 
+        #satellite 
+        az2 = spacetrack_az
+        el2 = spacetrack_el
+        theta_offset = np.arccos(np.sin(el1) * np.sin(el2) + np.cos(el1) * np.cos(el2) * np.cos(az1 - az2))
+
         #write position data to csv
-        csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist,])
+        csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist, theta_offset])
