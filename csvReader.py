@@ -234,7 +234,7 @@ sat_obs = satellite.SatelliteObserver(gbt_location)
 with open("sat_positions.csv", "w") as ofile :
     csv_writer = csv.writer(ofile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     #headers
-    csv_writer.writerow(['sat_id', 'unclassified_az', 'unclassified_el', 'unclassified_dist', 'classified_az', 'classified_el', 'classified_dist', 'spacetrack_az', 'spacetrack_el', 'spacetrack_dist', 'theta_offset'])
+    csv_writer.writerow(['sat_id', 'unclassified_az', 'unclassified_el', 'unclassified_dist', 'classified_az', 'classified_el', 'classified_dist', 'spacetrack_az', 'spacetrack_el', 'spacetrack_dist', 'theta_offset', 'rx_channel'])
 
     #gbt pointing
     az1 = 360.0 * u.deg
@@ -266,5 +266,8 @@ with open("sat_positions.csv", "w") as ofile :
         el2 = spacetrack_el
         theta_offset = (np.arccos(np.sin(el1) * np.sin(el2) + np.cos(el1) * np.cos(el2) * np.cos(az1 - az2))).to(u.degree)
 
+        #rx downlink channel
+        rx_channel = rx_channelArray[i]
+
         #write position data to csv
-        csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist, theta_offset])
+        csv_writer.writerow([sat_id, unclassified_az, unclassified_el, unclassified_dist, classified_az, classified_el, classified_dist, spacetrack_az, spacetrack_el, spacetrack_dist, theta_offset, rx_channel])
