@@ -97,12 +97,11 @@ print(f"Read in {linenum} lines from {filepath}")
 #determine xticks
 minTime = min(timeArray)
 maxTime = max(timeArray)
-
 # numDivisions = 12 #can change this
 # stepsize = ( maxTime - minTime ) / numDivisions
 # tickpositions = np.arange(minTime, maxTime + stepsize, stepsize) #positions from firsttime to lasttime, inclusive
 
-#determine datatime for each data point
+#determine datetime for each data point
 hmsArray = []
 for i, satTime in enumerate(timeArray) :
         satHour = int(satTime.split(":")[0])  #UTC time
@@ -110,8 +109,10 @@ for i, satTime in enumerate(timeArray) :
         satSecond = 15 * (i % 4) #15 second intervals
         dt = datetime.datetime(2022, 5, 15, satHour, satMinute, satSecond) #time of day
         # dt = datetime.time(satHour, satMinute, satSecond) #time of day
-        hms = dt.strftime("%H:%M:%S")
-        hmsArray.append(dt)
+        # hms = dt.strftime("%H %M %S)")
+        hms = dt
+        hmsArray.append(hms)
+
 
 #format and display plot
 currentFigure = plt.figure(figsize=(10,6))
@@ -119,10 +120,10 @@ plt.xlabel("Time (UTC HMS)")
 plt.ylabel("rx_channel")
 title = f"Downlink channels from {minTime} to {maxTime}"
 plt.suptitle(title)
+plt.rcParams["date.autoformatter.minute"] = "%H:%M:%S"
 
 # plt.xlim(minTime, maxTime) #comment out to add padding 
 
-plt.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='green', linewidth=0.5)
-currentFigure.autofmt_xdate()
+plt.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='green')
 plt.show()
-# plt.xticks(hmsArray, )
+
