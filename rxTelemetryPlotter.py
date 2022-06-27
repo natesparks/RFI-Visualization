@@ -163,18 +163,24 @@ if (numargs == 3) :
             eventHour, eventMinute, eventSecond = tuple(map(int, data[1].split(':'))) #split into [h,m,s]
             eventtimes.append(datetime.datetime(satYear, satMonth , satDay, eventHour, eventMinute, eventSecond))
 
-    #display event timestamp data
+    #shade background sections corresponding to timestamps
+    labellist = []
     eventColorMap = {'All_on' : 'silver', 'Xband_off' : 'turquoise', 'Kuband_off' : 'blue', 'Fat_fingering' : 'crimson'}
-
     lastEventTime = max(eventtimes)
     for i, data in enumerate(zip(eventnames, eventtimes)) :
         eventname, eventtime = data
-        #plot last event as a fixed width line
+        #label section if color not already labelled
+        label = ""
+        if (eventname not in labellist) :
+            labellist.append(eventname)
+            label = eventname
+        #plot last event as fixed 5 minute band going past the last data point
         if (eventtime == lastEventTime) :
-            plt.axvline(x = eventtime, linewidth = 3, color = eventColorMap[eventname] , label = eventname, zorder=-100)
+            plt.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
         else :
-            plt.axvspan(eventtime, eventtimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label=eventname, zorder=-100)
+            plt.axvspan(eventtime, eventtimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
 
-plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper right')
+plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+plt.tight_layout() #prevent legend from getting cut off
 plt.show()
 
