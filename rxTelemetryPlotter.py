@@ -12,15 +12,25 @@ class FieldColPair :
         self.colnum = colnum
 
 #check for number of arguments
-if (len(sys.argv) != 2) :
-	sys.exit("Usage: python3 rxTelemetry.py <filepath>")
+numargs = len(sys.argv)
+if (numargs < 2 or numargs > 3) :
+	sys.exit("Usage: python3 rxTelemetry.py <filepath> [event_timesatmps]")
 
-#check that filepath is valid
+#check that csv filepath is valid
 filepath = sys.argv[1]
 if (os.path.exists(filepath) is False) :
 	sys.exit("Could not find file with path: " + filepath)
 if (filepath.endswith(".csv") is False) :
 	sys.exit("The provided file is not a .csv file: " + filepath)
+
+#check that timestamps filepath is valid
+if (numargs == 3) :
+    timestamp_filepath = sys.argv[2]
+    if (os.path.exists(timestamp_filepath) is False) :
+        sys.exit("Could not find file with path: " + timestamp_filepath)
+    if (timestamp_filepath.endswith(".txt") is False) :
+        sys.exit("The provided file is not a .txt file: " + timestamp_filepath)
+    
 
 #start reading csv file
 print("Preparing to read: " + filepath)
@@ -75,9 +85,9 @@ with open(filepath) as csvFile:
     for row in csvReader :
         if (linenum == 1) :
             satDate = row[0].split()[0]
-            satYear = ("%04d" % int(satDate.split("/")[2]))
-            satMonth = ("%02d" % int(satDate.split("/")[0]))
-            satDay = ("%02d" % int(satDate.split("/")[1]))
+            satYear = int(satDate.split("/")[2])
+            satMonth = int(satDate.split("/")[0])
+            satDay = int(satDate.split("/")[1])
         satTime = row[timeMatch.colnum].split()[1] 
 
         rx_channel = row[rxMatch.colnum]  #leave as strings
@@ -95,11 +105,11 @@ print(f"Read in {linenum} lines from {filepath}")
 #PLOT RX OVER TIME
 
 #determine xticks
-minTime = min(timeArray)
-maxTime = max(timeArray)
+starttime = min(timeArray)
+endtime = max(timeArray)
 # numDivisions = 12 #can change this
-# stepsize = ( maxTime - minTime ) / numDivisions
-# tickpositions = np.arange(minTime, maxTime + stepsize, stepsize) #positions from firsttime to lasttime, inclusive
+# stepsize = ( endtime - starttime ) / numDivisions
+# tickpositions = np.arange(starttime, endtime + stepsize, stepsize) #positions from firsttime to lasttime, inclusive
 
 #determine datetime for each data point
 hmsArray = []
@@ -107,23 +117,64 @@ for i, satTime in enumerate(timeArray) :
         satHour = int(satTime.split(":")[0])  #UTC time
         satMinute = int(satTime.split(":")[1])
         satSecond = 15 * (i % 4) #15 second intervals
-        dt = datetime.datetime(2022, 5, 15, satHour, satMinute, satSecond) #time of day
+        dt = datetime.datetime(satYear, satMonth, satDay, satHour, satMinute, satSecond) #time of day
         # dt = datetime.time(satHour, satMinute, satSecond) #time of day
         # hms = dt.strftime("%H %M %S)")
         hms = dt
         hmsArray.append(hms)
 
 
-#format and display plot
+#format and plot axes and text
 currentFigure = plt.figure(figsize=(10,6))
 plt.xlabel("Time (UTC HMS)")
 plt.ylabel("rx_channel")
-title = f"Downlink channels from {minTime} to {maxTime}"
+title = f"Downlink channels from {starttime} to {endtime}"
 plt.suptitle(title)
 plt.rcParams["date.autoformatter.minute"] = "%H:%M:%S"
 
-# plt.xlim(minTime, maxTime) #comment out to add padding 
+# plt.xlim(starttime, endtime) #comment out to add padding 
 
-plt.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='green')
+
+#plot data
+plt.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black')
+
+
+#check for an event timestamp file
+if (numargs == 3) :
+    print("Reading: " + timestamp_filepath)
+    eventnames =  []
+    eventtimes = []
+    #color cycle
+    currentColor = 0
+
+    #parse event timestamp data 
+    with open(timestamp_filepath, 'r') as efile :
+        header = efile.readline()
+        while (1) :
+            line = efile.readline()
+            data = line.split()
+            #end of file condition
+            length = len(data)
+            if (length != 2) : break
+
+            #event name, time, and format
+            eventname = data[0]
+            eventnames.append(eventname)
+            eventHour, eventMinute, eventSecond = tuple(map(int, data[1].split(':'))) #split into [h,m,s]
+            eventtimes.append(datetime.datetime(satYear, satMonth , satDay, eventHour, eventMinute, eventSecond))
+
+    #display event timestamp data
+    eventColorMap = {'All_on' : 'silver', 'Xband_off' : 'turquoise', 'Kuband_off' : 'blue', 'Fat_fingering' : 'crimson'}
+
+    lastEventTime = max(eventtimes)
+    for i, data in enumerate(zip(eventnames, eventtimes)) :
+        eventname, eventtime = data
+        #plot last event as a fixed width line
+        if (eventtime == lastEventTime) :
+            plt.axvline(x = eventtime, linewidth = 3, color = eventColorMap[eventname] , label = eventname, zorder=-100)
+        else :
+            plt.axvspan(eventtime, eventtimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label=eventname, zorder=-100)
+
+plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper right')
 plt.show()
 
