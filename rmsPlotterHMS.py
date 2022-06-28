@@ -65,7 +65,7 @@ def calculateScanRMS(source_directory, freq_min, freq_max) :
                 # add intensity to list 
                 intensityList.append(intensity)
 
-            print("Reading: " + filepath)
+            # print("Reading: " + filepath)
 
 
         # calculate rms

@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
 import datetime
 import numpy as np 
+import timestampHandler
+import rmsPlotterHMS
 
 class FieldColPair :
     def __init__(self, field, colnum) :
@@ -13,19 +15,24 @@ class FieldColPair :
 
 #check for number of arguments
 numargs = len(sys.argv)
-if (numargs < 2 or numargs > 3) :
-	sys.exit("Usage: python3 rxTelemetry.py <filepath> [event_timesatmps]")
+if (numargs < 3 or numargs > 4) :
+    sys.exit("Usage: python3 rxTelemetry.py <telemetry_filepath> <scan_directory> [event_timestamps]")
 
-#check that csv filepath is valid
-filepath = sys.argv[1]
-if (os.path.exists(filepath) is False) :
-	sys.exit("Could not find file with path: " + filepath)
-if (filepath.endswith(".csv") is False) :
-	sys.exit("The provided file is not a .csv file: " + filepath)
+#check that csv telemetry_filepath is valid
+telemetry_filepath = sys.argv[1]
+if (os.path.exists(telemetry_filepath) is False) :
+    sys.exit("Could not find file with path: " + telemetry_filepath)
+if (telemetry_filepath.endswith(".csv") is False) :
+    sys.exit("The provided file is not a .csv file: " + telemetry_filepath)
+
+# check that scan directory is valid
+scan_directory = sys.argv[2]
+if (os.path.isdir(scan_directory) is False) :
+    sys.exit("Could not find scan directory with name: " + scan_directory)
 
 #check that timestamps filepath is valid
-if (numargs == 3) :
-    timestamp_filepath = sys.argv[2]
+if (numargs == 4) :
+    timestamp_filepath = sys.argv[3]
     if (os.path.exists(timestamp_filepath) is False) :
         sys.exit("Could not find file with path: " + timestamp_filepath)
     if (timestamp_filepath.endswith(".txt") is False) :
@@ -33,8 +40,8 @@ if (numargs == 3) :
     
 
 #start reading csv file
-print("Preparing to read: " + filepath)
-with open(filepath) as csvFile:
+print("Preparing to read: " + telemetry_filepath)
+with open(telemetry_filepath) as csvFile:
     csvReader = csv.reader(csvFile, delimiter = ',')
 
     #get column headers
@@ -99,17 +106,9 @@ with open(filepath) as csvFile:
         satellite_idArray.append(satellite_id)
 
         linenum += 1
-print(f"Read in {linenum} lines from {filepath}")
+print(f"Read in {linenum} lines from {telemetry_filepath}")
 
 
-#PLOT RX OVER TIME
-
-#determine xticks
-starttime = min(timeArray)
-endtime = max(timeArray)
-# numDivisions = 12 #can change this
-# stepsize = ( endtime - starttime ) / numDivisions
-# tickpositions = np.arange(starttime, endtime + stepsize, stepsize) #positions from firsttime to lasttime, inclusive
 
 #determine datetime for each data point
 hmsArray = []
@@ -118,56 +117,47 @@ for i, satTime in enumerate(timeArray) :
         satMinute = int(satTime.split(":")[1])
         satSecond = 15 * (i % 4) #15 second intervals
         dt = datetime.datetime(satYear, satMonth, satDay, satHour, satMinute, satSecond) #time of day
-        # dt = datetime.time(satHour, satMinute, satSecond) #time of day
-        # hms = dt.strftime("%H %M %S)")
         hms = dt
         hmsArray.append(hms)
+starttime = min(timeArray)
+endtime = max(timeArray)
 
-
-#format and plot axes and text
-currentFigure = plt.figure(figsize=(10,6))
-plt.xlabel("Time (UTC HMS)")
-plt.ylabel("rx_channel")
-title = f"Downlink channels from {starttime} to {endtime}"
-plt.suptitle(title)
+#Format axes and text
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True)
+title = f"Downlink Channel Activity and GBT RMS from {starttime} to {endtime}"
+fig.suptitle(title)
 plt.rcParams["date.autoformatter.minute"] = "%H:%M:%S"
-
 # plt.xlim(starttime, endtime) #comment out to add padding 
+fig.set_size_inches(16, 9)
 
 
-#plot data
-plt.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black')
+# RX channel plot
+ax1.set_ylabel("rx_channel")
+ax1.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black')
 
+# RMS plot
+ax2.set_xlabel("Time (UTC HMS)")
+ax2.set_ylabel("RMS (Jy)")
+# channel data
+channelfreqArray = [('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
+channelColorMap = {'3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
+
+for data in channelfreqArray :
+    channelNum, freq_min, freq_max = data
+    timeList, rmsList = rmsPlotterHMS.calculateScanRMS(scan_directory, freq_min, freq_max)
+    ax2.plot(timeList, rmsList, color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
 
 #check for an event timestamp file
-if (numargs == 3) :
+if (numargs == 4) :
     print("Reading: " + timestamp_filepath)
-    eventnames =  []
-    eventtimes = []
-    #color cycle
-    currentColor = 0
-
-    #parse event timestamp data 
-    with open(timestamp_filepath, 'r') as efile :
-        header = efile.readline()
-        while (1) :
-            line = efile.readline()
-            data = line.split()
-            #end of file condition
-            length = len(data)
-            if (length != 2) : break
-
-            #event name, time, and format
-            eventname = data[0]
-            eventnames.append(eventname)
-            eventHour, eventMinute, eventSecond = tuple(map(int, data[1].split(':'))) #split into [h,m,s]
-            eventtimes.append(datetime.datetime(satYear, satMonth , satDay, eventHour, eventMinute, eventSecond))
+    
+    eventnames, eventdatetimes = timestampHandler.parsefile(timestamp_filepath)
 
     #shade background sections corresponding to timestamps
     labellist = []
     eventColorMap = {'All_on' : 'silver', 'Xband_off' : 'turquoise', 'Kuband_off' : 'blue', 'Fat_fingering' : 'crimson'}
-    lastEventTime = max(eventtimes)
-    for i, data in enumerate(zip(eventnames, eventtimes)) :
+    lastEventTime = max(eventdatetimes)
+    for i, data in enumerate(zip(eventnames, eventdatetimes)) :
         eventname, eventtime = data
         #label section if color not already labelled
         label = ""
@@ -176,11 +166,14 @@ if (numargs == 3) :
             label = eventname
         #plot last event as fixed 5 minute band going past the last data point
         if (eventtime == lastEventTime) :
-            plt.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax1.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax2.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
         else :
-            plt.axvspan(eventtime, eventtimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax1.axvspan(eventtime, eventdatetimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax2.axvspan(eventtime, eventdatetimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
 
-plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+ax1.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+ax2.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
 plt.tight_layout() #prevent legend from getting cut off
 plt.show()
 
