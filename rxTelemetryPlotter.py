@@ -139,8 +139,8 @@ ax1.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black'
 ax2.set_xlabel("Time (UTC HMS)")
 ax2.set_ylabel("RMS (Jy)")
 # channel data
-channelfreqArray = [('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
-channelColorMap = {'3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
+channelfreqArray = [('1', 10.70, 10.95), ('2', 10.95, 11.20), ('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
+channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
 
 for data in channelfreqArray :
     channelNum, freq_min, freq_max = data
