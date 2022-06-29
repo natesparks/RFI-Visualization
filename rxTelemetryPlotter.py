@@ -5,8 +5,9 @@ from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
 import datetime
 import numpy as np 
+import glob
 import timestampHandler
-import rmsPlotterHMS
+from rfiTableHandler import rfiTableHandler
 
 class FieldColPair :
     def __init__(self, field, colnum) :
@@ -29,6 +30,8 @@ if (telemetry_filepath.endswith(".csv") is False) :
 scan_directory = sys.argv[2]
 if (os.path.isdir(scan_directory) is False) :
     sys.exit("Could not find scan directory with name: " + scan_directory)
+scanFilepathList = (glob.glob(scan_directory + "/*.txt"))
+
 
 #check that timestamps filepath is valid
 if (numargs == 4) :
@@ -124,7 +127,7 @@ for i, satTime in enumerate(timeArray) :
 starttime = min(timeArray)
 endtime = max(timeArray)
 
-#Format axes and text
+#Format RX axes and text
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True)
 title = f"Downlink Channel Activity and GBT RMS from {starttime} to {endtime}"
 fig.suptitle(title)
@@ -132,34 +135,56 @@ plt.rcParams["date.autoformatter.minute"] = "%H:%M:%S"
 # plt.xlim(starttime, endtime) #comment out to add padding 
 fig.set_size_inches(16, 9)
 
-
 # RX channel plot
 ax1.set_ylabel("rx_channel")
 ax1.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black')
 
-# RMS plot
-ax2.set_xlabel("Time (UTC HMS)")
-ax2.set_ylabel("RMS (Jy)")
-# channel data
+
+# Channel data
 channelfreqArray = [('1', 10.70, 10.95), ('2', 10.95, 11.20), ('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
 channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
-#calculate rms over time for each channel
+channelTimeLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channelfreqArray}
+channelrmsLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channelfreqArray}
+
+# Calculate rms for each channel for each scan file
 executionStart = datetime.datetime.now()
-for data in channelfreqArray :
-    channelNum, freq_min, freq_max = data
-    timeList, rmsList = rmsPlotterHMS.calculateScanRMS(scan_directory, freq_min, freq_max)
-    ax2.plot(timeList, rmsList, color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
+numTotalScans = len(scanFilepathList)
+numCompleteScans = 0
+nextExecutionMilestone = 0 #percent 
+for scanFilepath in scanFilepathList :
+    if ((numCompleteScans/numTotalScans)*100 >= nextExecutionMilestone) :  # display the percent of scans processed to the user
+        print(f"{nextExecutionMilestone} % of RFI scans processed with RMS calculations performed")
+        nextExecutionMilestone += 10
+    curr_rfiTableHandler = rfiTableHandler(scanFilepath)
+    channelrmsMap = curr_rfiTableHandler.calcRMSmultiChannel(channelfreqArray)  # returns array of each channel and its rms for this scan
+    scanDatetime = curr_rfiTableHandler.scanDatetime
+    for item in channelrmsMap.items() :
+        channelNum, rms = item
+        channelTimeLists[channelNum].append(scanDatetime)
+        channelrmsLists[channelNum].append(rms)
+    numCompleteScans += 1
+
+
+# Display rms calculation execution time
 executionEnd = datetime.datetime.now()
-print(f"RMS calculation exec time: {executionEnd - executionStart}")
+print(f"100% of RFI scans processed complete with execution time {executionEnd - executionStart}")
 
+# RMS plot formatting
+ax2.set_xlabel("Time (UTC HMS)")
+ax2.set_ylabel("RMS (Jy)")
 
-#check for an event timestamp file
+#Plot rms over time
+for channelData in channelfreqArray :
+    channelNum, freq_min, freq_max = channelData
+    ax2.plot(channelTimeLists[channelNum], channelrmsLists[channelNum], color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
+
+# Check for an event timestamp file
 if (numargs == 4) :
     print("Reading: " + timestamp_filepath)
     
     eventnames, eventdatetimes = timestampHandler.parsefile(timestamp_filepath)
 
-    #shade background sections corresponding to timestamps
+    # Shade background sections corresponding to timestamps
     labellist = []
     eventColorMap = {'All_on' : 'silver', 'Xband_off' : 'turquoise', 'Kuband_off' : 'blue', 'Fat_fingering' : 'crimson'}
     lastEventTime = max(eventdatetimes)
