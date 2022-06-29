@@ -40,6 +40,7 @@ if (numargs == 4) :
     
 
 #start reading csv file
+executionStart = datetime.datetime.now()
 print("Preparing to read: " + telemetry_filepath)
 with open(telemetry_filepath) as csvFile:
     csvReader = csv.reader(csvFile, delimiter = ',')
@@ -107,7 +108,8 @@ with open(telemetry_filepath) as csvFile:
 
         linenum += 1
 print(f"Read in {linenum} lines from {telemetry_filepath}")
-
+executionEnd = datetime.datetime.now()
+print(f"Telemetry exec time: {executionEnd - executionStart}")
 
 
 #determine datetime for each data point
@@ -141,11 +143,15 @@ ax2.set_ylabel("RMS (Jy)")
 # channel data
 channelfreqArray = [('1', 10.70, 10.95), ('2', 10.95, 11.20), ('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
 channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
-
+#calculate rms over time for each channel
+executionStart = datetime.datetime.now()
 for data in channelfreqArray :
     channelNum, freq_min, freq_max = data
     timeList, rmsList = rmsPlotterHMS.calculateScanRMS(scan_directory, freq_min, freq_max)
     ax2.plot(timeList, rmsList, color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
+executionEnd = datetime.datetime.now()
+print(f"RMS calculation exec time: {executionEnd - executionStart}")
+
 
 #check for an event timestamp file
 if (numargs == 4) :
