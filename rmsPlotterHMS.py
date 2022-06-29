@@ -69,10 +69,15 @@ def calculateScanRMS(source_directory, freq_min, freq_max) :
 
 
         # calculate rms
-        rms = np.square(intensityList).mean()
-        rms = sqrt(rms)
-        timeList.append(scanDatetime)
+        if (intensityList) :
+            rms = np.square(intensityList).mean()
+            rms = sqrt(rms)  
+        else : #empty intensityList (no frequencies in this scan are within [freq_min, freq_max])
+            rms = float("nan")
         rmsList.append(rms)
+        timeList.append(scanDatetime)
+    # print(f"{freq_min} {freq_max} has rms list:")
+    # print(rmsList)
     return (timeList, rmsList)
 
 
