@@ -167,7 +167,7 @@ for scanFilepath in scanFilepathList :
 
 # Display rms calculation execution time
 executionEnd = datetime.datetime.now()
-print(f"100% of RFI scans processed complete with execution time {executionEnd - executionStart}")
+print(f"100% of RFI scans processed with execution time {executionEnd - executionStart}")
 
 # RMS plot formatting
 ax2.set_xlabel("Time (UTC HMS)")
