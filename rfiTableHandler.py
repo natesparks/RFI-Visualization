@@ -1,11 +1,15 @@
 import datetime
-from email import header
 from math import sqrt
 import numpy as np
 
 class rfiTableHandler :
     def __init__(self, filepath) :
         self.filepath = filepath
+
+        # Table Format Properties
+        self.__headerlength = 21
+        self.__dateLinenum = 2
+        self.__timeLinenum = 3
 
 
     # Returns rms for a single frequency range within the scan (can be paired with attribute scanDatetime to plot rms over time)
@@ -14,17 +18,16 @@ class rfiTableHandler :
         with open(self.filepath, 'r') as ifile :
 
             # Read 21 header lines before data appears
-            headerlength = 21
-            for i in range(0,headerlength) :
+            for i in range(0,self.__headerlength) :
                 line = ifile.readline()
                 # parse date
-                if (i == 2) :
+                if (i == self.__dateLinenum) :
                     scanDate = line.split()[2].split('-')
                     scanYear = int(scanDate[0])
                     scanMonth = int(scanDate[1])
                     scanDay = int(scanDate[2])
                 # parse time
-                if (i == 3) : 
+                if (i == self.__timeLinenum) : 
                     scanHour = float((line.split())[3]) #decimal hour, float values
                     scanMinute = 60 * (scanHour % 1) 
                     scanSecond = 60 * (scanMinute % 1) 
@@ -64,17 +67,16 @@ class rfiTableHandler :
         with open(self.filepath, 'r') as ifile :
 
             # Read 21 header lines before data appears
-            headerlength = 21
-            for i in range(0,headerlength) :
+            for i in range(0,self.__headerlength) :
                 line = ifile.readline()
                 # parse date
-                if (i == 2) :
+                if (i == self.__dateLinenum) :
                     scanDate = line.split()[2].split('-')
                     scanYear = int(scanDate[0])
                     scanMonth = int(scanDate[1])
                     scanDay = int(scanDate[2])
                 # parse time
-                if (i == 3) : 
+                if (i == self.__timeLinenum) : 
                     scanHour = float((line.split())[3]) #decimal hour, float values
                     scanMinute = 60 * (scanHour % 1) 
                     scanSecond = 60 * (scanMinute % 1) 
@@ -118,3 +120,5 @@ class rfiTableHandler :
                 rms = sqrt(np.square(intensityList).mean())
             channelrmsMap[channelNum] = rms
         return channelrmsMap
+    
+    #
