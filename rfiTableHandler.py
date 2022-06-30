@@ -7,7 +7,7 @@ class rfiTableHandler :
         self.filepath = filepath
 
         # Table Format Properties
-        self.__headerlength = 21
+        self.__headerlength = 22
         self.__dateLinenum = 2
         self.__timeLinenum = 3
 
