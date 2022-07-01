@@ -17,7 +17,7 @@ class rfiTableHandler :
         intensityList = []
         with open(self.filepath, 'r') as ifile :
 
-            # Read 21 header lines before data appears
+            # Read header lines before data appears
             for i in range(0,self.__headerlength) :
                 line = ifile.readline()
                 # parse date
@@ -31,6 +31,8 @@ class rfiTableHandler :
                     scanHour = float((line.split())[3]) #decimal hour, float values
                     scanMinute = 60 * (scanHour % 1) 
                     scanSecond = 60 * (scanMinute % 1) 
+                if ("Frequency" in line and "Intensity" in line) :
+                    break
             self.scanDatetime = datetime.datetime(scanYear, scanMonth, scanDay, int(scanHour), int(scanMinute), int(scanSecond)) 
 
             # Parse intensity data that is within frequency range
@@ -66,7 +68,7 @@ class rfiTableHandler :
 
         with open(self.filepath, 'r') as ifile :
 
-            # Read 21 header lines before data appears
+            # Read header lines before data appears
             for i in range(0,self.__headerlength) :
                 line = ifile.readline()
                 # parse date
@@ -80,6 +82,8 @@ class rfiTableHandler :
                     scanHour = float((line.split())[3]) #decimal hour, float values
                     scanMinute = 60 * (scanHour % 1) 
                     scanSecond = 60 * (scanMinute % 1) 
+                if ("Frequency" in line and "Intensity" in line) :
+                    break
             self.scanDatetime = datetime.datetime(scanYear, scanMonth, scanDay, int(scanHour), int(scanMinute), int(scanSecond)) 
 
             # Parse intensity data that is within frequency range
