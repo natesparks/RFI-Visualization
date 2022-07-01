@@ -57,7 +57,7 @@ class rfiTableHandler :
                 if (frequency >= freq_min and frequency<=freq_max) :
                     frequencyList.append(frequency)
                     intensityList.append(intensity)
-            print(f"{len(frequencyList)} valid data points read in and {NaNcount} points with invalid intensity ignored")
+            # print(f"{len(frequencyList)} valid data points read in and {NaNcount} points with invalid intensity ignored")
             return (frequencyList, intensityList)
 
 
