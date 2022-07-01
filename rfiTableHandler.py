@@ -11,6 +11,55 @@ class rfiTableHandler :
         self.__dateLinenum = 2
         self.__timeLinenum = 3
 
+    # Parse out a frequencyList and intensityList
+    def getFreqIntensity(self, freq_min, freq_max) :
+        # variable declarations
+        frequencyList = []
+        intensityList = []
+        NaNcount = 0
+
+        with open(self.filepath, 'r') as ifile :
+
+            # Read header lines before data appears
+            for i in range(0,self.__headerlength) :
+                line = ifile.readline()
+                # parse date
+                if (i == self.__dateLinenum) :
+                    scanDate = line.split()[2].split('-')
+                    scanYear = int(scanDate[0])
+                    scanMonth = int(scanDate[1])
+                    scanDay = int(scanDate[2])
+                # parse time
+                if (i == self.__timeLinenum) : 
+                    scanHour = float((line.split())[3]) #decimal hour, float values
+                    scanMinute = 60 * (scanHour % 1) 
+                    scanSecond = 60 * (scanMinute % 1) 
+                if ("Frequency" in line and "Intensity" in line) :
+                    break
+            self.scanDatetime = datetime.datetime(scanYear, scanMonth, scanDay, int(scanHour), int(scanMinute), int(scanSecond)) 
+                
+
+            # parse data from file
+            while (1) :
+                line  = ifile.readline()
+                data = line.split()
+                #end of file condition
+                length = len(data)
+                if (length < 4) : break
+                #extract data to be plotted
+                frequency = float(data[2])
+                intensity = float(data[3])
+                #skip points with invalid intensity (NaN)
+                if (data[3] == "NaN") :
+                    NaNcount += 1
+                    continue
+                #add data point if  frequency is in desired range [freq_min,freq_max]
+                if (frequency >= freq_min and frequency<=freq_max) :
+                    frequencyList.append(frequency)
+                    intensityList.append(intensity)
+            print(f"{len(frequencyList)} valid data points read in and {NaNcount} points with invalid intensity ignored")
+            return (frequencyList, intensityList)
+
 
     # Returns rms for a single frequency range within the scan (can be paired with attribute scanDatetime to plot rms over time)
     def calcRMSsingleChannel(self, freq_min, freq_max) :
