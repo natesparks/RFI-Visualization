@@ -172,6 +172,8 @@ print(f"100% of RFI scans processed with execution time {executionEnd - executio
 # RMS plot formatting
 ax2.set_xlabel("Time (UTC HMS)")
 ax2.set_ylabel("RMS (Jy)")
+# ax2.set_ylim(0.0, 1.0) #clamp outliers
+
 
 #Plot rms over time
 for channelData in channelfreqArray :
