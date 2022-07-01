@@ -56,7 +56,7 @@ sourcepathlist = (glob.glob(sourceDir + "/*.png"))
 
 #check if any images exist
 if (len(sourcepathlist) == 0 ) :
-	sys.exit("Source directory has no files")
+	sys.exit("Source directory has no .png files")
 
 #determine movie parameters
 height, width, layers = cv2.imread(sourcepathlist[0]).shape
