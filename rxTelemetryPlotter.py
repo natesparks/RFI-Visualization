@@ -1,4 +1,5 @@
 import csv
+from re import X
 import sys
 import os.path
 from matplotlib import pyplot as plt 
@@ -175,10 +176,19 @@ ax2.set_ylabel("RMS (Jy)")
 # ax2.set_ylim(0.0, 1.0) #clamp outliers
 
 
-#Plot rms over time
+# Plot rms over time
 for channelData in channelfreqArray :
     channelNum, freq_min, freq_max = channelData
     ax2.plot(channelTimeLists[channelNum], channelrmsLists[channelNum], color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
+
+# # Plot channel groups average rms over time
+# XbandTimeList = channelTimeLists['3']
+# XbandrmsList = np.array(channelrmsLists['4']) + np.array(channelrmsLists['5'])
+# KubandTimeList = channelTimeLists['6']
+# KubandrmsList = np.array(channelrmsLists['6']) + np.array(channelrmsLists['7']) + np.array(channelrmsLists['8'])
+# ax2.plot(KubandTimeList, KubandrmsList, color=channelColorMap['6'], linewidth=1.0, label=f"Channel 6, 7, 8")
+# ax2.plot(XbandTimeList, XbandrmsList, color=channelColorMap['3'], linewidth=1.0, label=f"Channel 4, 5")
+
 
 # Check for an event timestamp file
 if (numargs == 4) :
