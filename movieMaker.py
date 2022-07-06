@@ -54,6 +54,13 @@ targetPath = targetDir +  "/" + targetFilename + ".mp4"
 #get image paths from source directory
 sourcepathlist = (glob.glob(sourceDir + "/*.png"))
 
+#map scan numbers to source filepaths
+scanFilepathMap = {}
+for file in sourcepathlist :
+	filename = file.split('/')[-1]  
+	filenum = int(filename[4:8])  #assumes format scanXXXXintnum.png
+	scanFilepathMap[filenum] = file
+
 #check if any images exist
 if (len(sourcepathlist) == 0 ) :
 	sys.exit("Source directory has no .png files")
@@ -62,12 +69,12 @@ if (len(sourcepathlist) == 0 ) :
 height, width, layers = cv2.imread(sourcepathlist[0]).shape
 size = (width, height)
 fps = 5
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 vWriter = cv2.VideoWriter(targetPath, fourcc, fps, size)
 
 
 #convert each filepath to an image object, then add to movie
-for file in sourcepathlist :
+for scannum, file in sorted(scanFilepathMap.items()) :
 	img = cv2.imread(file)
 	vWriter.write(img)
 
