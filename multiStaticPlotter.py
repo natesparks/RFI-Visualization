@@ -3,6 +3,7 @@ import sys
 import os.path
 import glob
 from rfiTableHandler import rfiTableHandler
+import channelDataHandler
 
 #check for number of arguments
 numargs = len(sys.argv)
@@ -19,8 +20,8 @@ if (os.path.isdir(targetDir) is False) :
 
 #parse x y range args
 ymax = float(sys.argv[3])
-freq_min = 0.0
-freq_max = 100.0
+freq_readMin = 0.0
+freq_readMax = 100.0
 if (numargs >= 5) : freq_min = float(sys.argv[4])
 if (numargs == 6) : freq_max = float(sys.argv[5])
 
@@ -29,40 +30,46 @@ filepathlist = (glob.glob(sourceDir + "/*.txt"))
 
 
 for filepath in filepathlist :
+    # get frequency and intensity from rfiTable
     curr_rfiTableHandler = rfiTableHandler(filepath)
-    frequencyList, intensityList = curr_rfiTableHandler.getFreqIntensity(freq_min, freq_max)
+    frequencyList, intensityList = curr_rfiTableHandler.getFreqIntensity(freq_readMin, freq_readMax)
     scanDatetime = curr_rfiTableHandler.scanDatetime
 
-    #graphing
+    # graph formatting
     currentFigure = plt.figure(figsize=(10,6))
-
+    plt.plot(frequencyList,intensityList, color='black', linewidth=0.5)
     plt.xlabel("Frequency (Ghz)")
     plt.ylabel("Flux Density (Jy)")
     plt.suptitle(scanDatetime)
-    plt.plot(frequencyList,intensityList, color='red', linewidth=0.5)
+
+    # get channel data and shade graph regions if there are any points in that region
+    channeldataArray = channelDataHandler.parsefile('channelData.txt')
+    channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
+    for channeldata in channeldataArray :
+        channelNum, freq_min, freq_max, = channeldata
+        if (any(freq > freq_min and freq < freq_max for freq in frequencyList)) :
+            plt.axvspan(freq_min, freq_max, facecolor = channelColorMap[channelNum], alpha=0.5, label=f"Channel {channelNum}", zorder=-100)        
+
+    # legend
+    plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+    plt.tight_layout() #prevent legend from getting cut off
 
     #set y limit
     plt.ylim(0, ymax)
     
-    #get file number
+    #get file number and intnum
     scannumIndex = filepath.find("_s") + 2
     scannum = filepath[scannumIndex:scannumIndex+4]
-
-    #get intnum, if exits
     intnumIndex = filepath.find("_i")
     intnum = ""
     if (intnumIndex != -1) :
         intnumIndex += 2
         intnum = filepath[intnumIndex:intnumIndex+3]
-        
 
     #save figure
     targetPath = targetDir + "/" + "scan" + scannum + "intnum" + intnum + ".png"
     print(f"Saving scan {targetPath}")
     plt.savefig(targetPath) 
-    # plt.show()
     plt.close(currentFigure)
-    #plt.close('all')
 
-#
 print("All static plots saved to directory: " + targetDir)
