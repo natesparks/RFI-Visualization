@@ -7,6 +7,9 @@ import matplotlib.dates as mdates
 import datetime
 import numpy as np 
 import glob
+from time import perf_counter
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 import timestampHandler
 from rfiTableHandler import rfiTableHandler
 
@@ -44,7 +47,7 @@ if (numargs == 4) :
     
 
 #start reading csv file
-executionStart = datetime.datetime.now()
+executionStart = perf_counter()
 print("Preparing to read: " + telemetry_filepath)
 with open(telemetry_filepath) as csvFile:
     csvReader = csv.reader(csvFile, delimiter = ',')
@@ -56,10 +59,13 @@ with open(telemetry_filepath) as csvFile:
     timeArray = []
     rx_channelArray = []
     satellite_idArray = []
+    theta_offsetArray = []
     timeMatch = FieldColPair("timestamp (GMT+00:00 UTC)", 0)
     rxMatch = FieldColPair("rx_channel_id", 0)
     sat_idMatch = FieldColPair("satellite_id", 0)
-    fieldColPairs = [timeMatch, rxMatch, sat_idMatch]
+    theta_offsetMatch = FieldColPair("theta_offset", 0)
+    fieldColPairs = [timeMatch, rxMatch, sat_idMatch, theta_offsetMatch]
+
     #attempt to match data fields to column headers
     for columnNum in range(len(headers)) :
         for Pair in fieldColPairs :
@@ -104,16 +110,17 @@ with open(telemetry_filepath) as csvFile:
 
         rx_channel = row[rxMatch.colnum]  #leave as strings
         satellite_id = row[sat_idMatch.colnum]
+        theta_offset = row[theta_offsetMatch.colnum].split()[0] #get rid of deg string
 
         #store data
         timeArray.append(satTime)
         rx_channelArray.append(rx_channel)
         satellite_idArray.append(satellite_id)
+        theta_offsetArray.append(theta_offset)
 
         linenum += 1
-print(f"Read in {linenum} lines from {telemetry_filepath}")
-executionEnd = datetime.datetime.now()
-print(f"Telemetry exec time: {executionEnd - executionStart}")
+executionEnd = perf_counter()
+print(f"Read in {linenum} lines from {telemetry_filepath} in {executionEnd - executionStart} sec")
 
 
 #determine datetime for each data point
@@ -138,7 +145,20 @@ fig.set_size_inches(16, 9)
 
 # RX channel plot
 ax1.set_ylabel("rx_channel")
-ax1.scatter(hmsArray, list(map(int, rx_channelArray)), marker='o', color='black')
+executionStart = perf_counter()
+legend_elements = []
+# ax1.scatter(hmsArray,list(map(int, rx_channelArray)), marker='o', color='black') # plot without transparency
+
+# RX channel plot with transparency
+maxOffset = 60
+for offsetDiv in range(10, maxOffset, 10) :  # 6 divisions from 0 to 60
+    lowerbound = offsetDiv - 10
+    alpha = 1.1 - offsetDiv / maxOffset
+    filtered_hmsArray, filtered_rx_channelArray, filtered_theta_offsetArray = list(zip(*list(filter(lambda pair : pair[2] < offsetDiv and pair[2] >= lowerbound, zip(hmsArray, list(map(int, rx_channelArray)), list(map(float, theta_offsetArray)))))))
+    ax1.scatter(filtered_hmsArray, filtered_rx_channelArray, marker='o', color='black', alpha=alpha)
+    legend_elements.append(Line2D([0], [0], marker='o', color='white', markerfacecolor='black', alpha=alpha, label=f"{lowerbound}-{offsetDiv} deg"))
+executionEnd = perf_counter()
+print(f"Plotted telemetry points in {executionEnd - executionStart} sec")
 
 
 # Channel data
@@ -148,7 +168,7 @@ channelTimeLists = {channelNum : [] for (channelNum, freq_min, freq_max) in chan
 channelrmsLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channelfreqArray}
 
 # Calculate rms for each channel for each scan file
-executionStart = datetime.datetime.now()
+executionStart = perf_counter()
 numTotalScans = len(scanFilepathList)
 numCompleteScans = 0
 nextExecutionMilestone = 0 #percent 
@@ -167,8 +187,8 @@ for scanFilepath in scanFilepathList :
 
 
 # Display rms calculation execution time
-executionEnd = datetime.datetime.now()
-print(f"100% of RFI scans processed with execution time {executionEnd - executionStart}")
+executionEnd = perf_counter()
+print(f"100% of RFI scans processed with execution time {executionEnd - executionStart} sec")
 
 # RMS plot formatting
 ax2.set_xlabel("Time (UTC HMS)")
@@ -203,19 +223,19 @@ if (numargs == 4) :
     for i, data in enumerate(zip(eventnames, eventdatetimes)) :
         eventname, eventtime = data
         #label section if color not already labelled
-        label = ""
         if (eventname not in labellist) :
             labellist.append(eventname)
-            label = eventname
+            legend_elements.append(Line2D([0], [0], color=eventColorMap[eventname], alpha = 0.5, lw=6, label=eventname))
+            
         #plot last event as fixed 5 minute band going past the last data point
         if (eventtime == lastEventTime) :
-            ax1.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax1.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
             ax2.axvspan(eventtime, eventtime + datetime.timedelta(minutes=5), facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
         else :
-            ax1.axvspan(eventtime, eventdatetimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, label = label, zorder=-100)
+            ax1.axvspan(eventtime, eventdatetimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
             ax2.axvspan(eventtime, eventdatetimes[i+1], facecolor = eventColorMap[eventname], alpha=0.5, zorder=-100)
 
-ax1.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+ax1.legend(handles=legend_elements, bbox_to_anchor = (1.0, 1.0), loc = 'upper left') 
 ax2.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
 plt.tight_layout() #prevent legend from getting cut off
 plt.show()
