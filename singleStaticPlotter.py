@@ -1,9 +1,8 @@
-# from astropy import units as u
 from matplotlib import pyplot as plt 
-# from astropy.visualization import quantity_support
-# quantity_support()
 import sys
 import os.path
+from rfiTableHandler import rfiTableHandler
+import channelDataHandler
 
 #check for number of arguments
 if (len(sys.argv) != 3) :
@@ -19,60 +18,28 @@ targetDir = sys.argv[2]
 if (os.path.isdir(targetDir) is False) :
 	sys.exit("Could not find target directory with name: " + targetDir)
 
-ifile = open(filepath, 'r')
+# get frequency and intensity from rfiTable
+freq_readMin = 0.0
+freq_readMax = 100.0
+curr_rfiTableHandler = rfiTableHandler(filepath)
+frequencyList, intensityList = curr_rfiTableHandler.getFreqIntensity(freq_readMin, freq_readMax)
+scanDatetime = curr_rfiTableHandler.scanDatetime
 
-#variable declarations
-frequency = 0.0
-intensity = 0.0
-frequencyList = []
-intensityList = []
-NaNcount = 0
-
-#read 21 header lines before data appears
-for i in range(0,21) :
-	line = ifile.readline()
-	#parse time
-	if (i == 3) : 
-		hours = float((line.split())[3])
-		minutes = 60 * (hours % 1)
-		seconds = 60 * (minutes % 1)
-		displaytime = ("%02d:%02d:%02d" % (hours, minutes, seconds))
-
-
-# parse data from text file
-while (1) :
-	#take in the data line by line
-	line  = ifile.readline()
-	data = line.split()
-
-	#end of file condition (no more rows in table)
-	length = len(data)
-	if (length < 4) : break
-
-	#extract frequency and intensity data to be plotted
-	frequency = float(data[2])
-	intensity = float(data[3])
-
-	#store frequency and intensity pair
-	#skip points with invalid intensity (NaN)
-	if (data[3] == "NaN") :
-		NaNcount += 1
-		continue
-	frequencyList.append(frequency)
-	intensityList.append(intensity)
-
-print(str(len(frequencyList)) + " valid data points read in")
-print(str(NaNcount) + " points with invalid intensity ignored")
-
-ifile.close()
-
-
-#graphing and display
+# graph formatting
 c = plt.figure(figsize=(10,6))
-plt.plot(frequencyList,intensityList, color='red', linewidth=0.5)
+plt.plot(frequencyList,intensityList, color='black', linewidth=0.5)
 plt.xlabel("Frequency (Ghz)")
 plt.ylabel("Flux Density (Jy)")
-plt.suptitle(displaytime)
+plt.suptitle(scanDatetime)
+
+# get channel data and shade graph regions if there are any points in that region
+channeldataArray = channelDataHandler.parsefile('channelData.txt')
+channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
+for channeldata in channeldataArray :
+    channelNum, freq_min, freq_max, = channeldata
+    if (any(freq > freq_min and freq < freq_max for freq in frequencyList)) :
+        plt.axvspan(freq_min, freq_max, facecolor = channelColorMap[channelNum], alpha=0.5, label=f"Channel {channelNum}", zorder=-100)        
+
 
 
 #get file number
@@ -80,10 +47,11 @@ numIndex = filepath.find("_s") + 2
 filenum = filepath[numIndex:numIndex+4]
 
 #save figure
+plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+plt.tight_layout() #prevent legend from getting cut off
 print("Saving scan" + filenum)
 targetPath = targetDir + "/" + "scan" + filenum + ".png"
 plt.savefig(targetPath) 
-
 print("Saved scan" + filenum + " to " + targetPath)
 
 
