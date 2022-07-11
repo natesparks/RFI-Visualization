@@ -13,10 +13,8 @@ def plotSingleInteractive(filepath) :
         sys.exit("The provided file is not a .txt file: " + filepath)
 
     # get frequency and intensity from rfiTable
-    freq_readMin = 0.0
-    freq_readMax = 100.0
     curr_rfiTableHandler = rfiTableHandler(filepath)
-    frequencyList, intensityList = curr_rfiTableHandler.getFreqIntensity(freq_readMin, freq_readMax)
+    frequencyList, intensityList = curr_rfiTableHandler.getFreqIntensity()
     scanDatetime = curr_rfiTableHandler.scanDatetime
 
     # graph formatting
