@@ -58,7 +58,7 @@ def plotMultiStatic(sourceDirectory, targetDirectory, ymax, ) :
         print(f"Saving scan {targetPath}")
         plt.savefig(targetPath, bbox_inches='tight') 
         plt.close(currentFigure)
-    print("All static plots saved to directory: " + targetDir)
+    print("All static plots saved to directory: " + targetDirectory)
 
 
 if __name__ == '__main__' :
