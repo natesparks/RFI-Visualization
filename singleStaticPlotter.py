@@ -23,7 +23,6 @@ def plotSingleStatic(filepath) :
 
     # graph formatting
     currentFigure = plt.figure(figsize=(10,6))
-    plt.plot(frequencyList,intensityList, color='black', linewidth=0.5)
     plt.xlabel("Frequency (Ghz)")
     plt.ylabel("Flux Density (Jy)")
     plt.suptitle(scanDatetime)
@@ -36,8 +35,9 @@ def plotSingleStatic(filepath) :
         if (any(freq > freq_min and freq < freq_max for freq in frequencyList)) :
             plt.axvspan(freq_min, freq_max, facecolor = channelColorMap[channelNum], alpha=0.5, label=f"Channel {channelNum}", zorder=-100)        
 
-	# legend
+	# plot with legend
     plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
+    plt.plot(frequencyList,intensityList, color='black', linewidth=0.5)
 	
     # get file number and intnum
     scannumIndex = filepath.find("_s") + 2
