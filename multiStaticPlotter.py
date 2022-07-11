@@ -52,7 +52,6 @@ for filepath in filepathlist :
 
     # legend
     plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
-    plt.tight_layout() #prevent legend from getting cut off
 
     #set y limit
     plt.ylim(0, ymax)
@@ -69,7 +68,7 @@ for filepath in filepathlist :
     #save figure
     targetPath = targetDir + "/" + "scan" + scannum + "intnum" + intnum + ".png"
     print(f"Saving scan {targetPath}")
-    plt.savefig(targetPath) 
+    plt.savefig(targetPath, bbox_inches='tight') 
     plt.close(currentFigure)
 
 print("All static plots saved to directory: " + targetDir)

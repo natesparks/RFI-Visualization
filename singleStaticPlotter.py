@@ -48,10 +48,9 @@ filenum = filepath[numIndex:numIndex+4]
 
 #save figure
 plt.legend(bbox_to_anchor = (1.0, 1.0), loc = 'upper left')
-plt.tight_layout() #prevent legend from getting cut off
 print("Saving scan" + filenum)
 targetPath = targetDir + "/" + "scan" + filenum + ".png"
-plt.savefig(targetPath) 
+plt.savefig(targetPath, bbox_inches='tight') 
 print("Saved scan" + filenum + " to " + targetPath)
 
 
