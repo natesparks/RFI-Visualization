@@ -1,9 +1,7 @@
 import csv
-from re import X
 import sys
 import os.path
 from matplotlib import pyplot as plt 
-import matplotlib.dates as mdates
 import datetime
 import numpy as np 
 import glob
@@ -14,15 +12,12 @@ import timestampHandler
 from rfiTableHandler import rfiTableHandler
 import channelDataHandler
 
-class FieldColPair :
-    def __init__(self, field, colnum) :
-        self.field = field
-        self.colnum = colnum
 
 #check for number of arguments
 numargs = len(sys.argv)
 if (numargs < 3 or numargs > 4) :
     sys.exit("Usage: python3 rxTelemetry.py <telemetry_filepath> <scan_directory> [event_timestamps]")
+
 
 #check that csv telemetry_filepath is valid
 telemetry_filepath = sys.argv[1]
@@ -36,7 +31,6 @@ scan_directory = sys.argv[2]
 if (os.path.isdir(scan_directory) is False) :
     sys.exit("Could not find scan directory with name: " + scan_directory)
 scanFilepathList = (glob.glob(scan_directory + "/*.txt"))
-
 
 #check that timestamps filepath is valid
 if (numargs == 4) :
@@ -53,32 +47,28 @@ print("Preparing to read: " + telemetry_filepath)
 with open(telemetry_filepath) as csvFile:
     csvReader = csv.reader(csvFile, delimiter = ',')
 
-    #get column headers
+    # get column headers
     headers = next(csvReader)
 
-    #data sets
+    # data lists
     timeArray = []
     rx_channelArray = []
     satellite_idArray = []
     theta_offsetArray = []
-    timeMatch = FieldColPair("timestamp (GMT+00:00 UTC)", 0)
-    rxMatch = FieldColPair("rx_channel_id", 0)
-    sat_idMatch = FieldColPair("satellite_id", 0)
-    theta_offsetMatch = FieldColPair("theta_offset", 0)
-    fieldColPairs = [timeMatch, rxMatch, sat_idMatch, theta_offsetMatch]
 
     #attempt to match data fields to column headers
-    for columnNum in range(len(headers)) :
-        for Pair in fieldColPairs :
-            if (Pair.field in headers[columnNum]) :
-                Pair.colnum = columnNum
+    fieldColMatchMap = {"timestamp (GMT+00:00 UTC)" : 0, "rx_channel_id" : 0, "satellite_id" : 0, "theta_offset" : 0}
+    for current_column in range(len(headers)) :
+        for field in fieldColMatchMap.keys() :
+            if (field in headers[current_column]) :
+                fieldColMatchMap[field] = current_column
 
-    #display the matches
+    # display the matches
     print("Confirm the following data fields:")
-    for Pair in fieldColPairs :
-        print("Matched column <" + headers[Pair.colnum] + "> to field: <" + Pair.field + ">")
+    for field, colnum in fieldColMatchMap.items() :
+        print("Matched column <" + headers[colnum] + "> to field: <" + field + ">")
 
-    #prompt user to manually change matches
+    # prompt user to manually change matches
     answer = input("Are the above fields correct? y/n ")
     if (answer == "n") :
         print("Update fields with the following format: update <field> <zero-indexed column number>")
@@ -90,16 +80,16 @@ with open(telemetry_filepath) as csvFile:
             command = answer.split()  
             if (len(command) == 3 and command[0] == "update" and (int(command[2]) in range(len(headers)))) : 
                 print("command valid")
-                for Pair in fieldColPairs :
-                    if (Pair.field == command[1]) :
-                        Pair.colnum = int(command[2]) #update colnum of Pair corresponding to entered field
+                for field, colnum in fieldColMatchMap.items() :
+                    if (field == command[1]) :
+                        fieldColMatchMap[field] = int(command[2]) #update colnum of Pair corresponding to entered field
             else :
                 print("command invalid")
-    #display new matches
-    for Pair in fieldColPairs :
-        print("Reading in column <" + headers[Pair.colnum] + "> for field: <" + Pair.field + ">")
+    # display new matches
+    for field, colnum in fieldColMatchMap.items() :
+        print("Reading in column <" + headers[colnum] + "> for field: <" + field + ">")
 
-    #parse data lines
+    # parse data lines
     linenum = 1
     for row in csvReader :
         if (linenum == 1) :
@@ -107,13 +97,12 @@ with open(telemetry_filepath) as csvFile:
             satYear = int(satDate.split("/")[2])
             satMonth = int(satDate.split("/")[0])
             satDay = int(satDate.split("/")[1])
-        satTime = row[timeMatch.colnum].split()[1] 
+        satTime = row[fieldColMatchMap["timestamp (GMT+00:00 UTC)"]].split()[1] 
+        rx_channel = row[fieldColMatchMap["rx_channel_id"]]  #leave as strings
+        satellite_id = row[fieldColMatchMap["satellite_id"]]
+        theta_offset = row[fieldColMatchMap["theta_offset"]].split()[0] #get rid of deg string
 
-        rx_channel = row[rxMatch.colnum]  #leave as strings
-        satellite_id = row[sat_idMatch.colnum]
-        theta_offset = row[theta_offsetMatch.colnum].split()[0] #get rid of deg string
-
-        #store data
+        # store data
         timeArray.append(satTime)
         rx_channelArray.append(rx_channel)
         satellite_idArray.append(satellite_id)
@@ -124,33 +113,34 @@ executionEnd = perf_counter()
 print(f"Read in {linenum} lines from {telemetry_filepath} in {executionEnd - executionStart} sec")
 
 
-#determine datetime for each data point
+# determine datetime for each data point
 hmsArray = []
 for i, satTime in enumerate(timeArray) :
         satHour = int(satTime.split(":")[0])  #UTC time
         satMinute = int(satTime.split(":")[1])
         satSecond = 15 * (i % 4) #15 second intervals
-        dt = datetime.datetime(satYear, satMonth, satDay, satHour, satMinute, satSecond) #time of day
-        hms = dt
-        hmsArray.append(hms)
+        dt = datetime.datetime(satYear, satMonth, satDay, satHour, satMinute, satSecond) 
+        hmsArray.append(dt)
+
+# format rx axes and text
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True)
 starttime = min(timeArray)
 endtime = max(timeArray)
-
-#Format RX axes and text
-fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True)
 title = f"Downlink Channel Activity and GBT RMS from {starttime} to {endtime}"
 fig.suptitle(title)
 plt.rcParams["date.autoformatter.minute"] = "%H:%M:%S"
 # plt.xlim(starttime, endtime) #comment out to add padding 
 fig.set_size_inches(16, 9)
 
-# RX channel plot
+# rx channel plot
 ax1.set_ylabel("rx_channel")
 executionStart = perf_counter()
 legend_elements = []
-# ax1.scatter(hmsArray,list(map(int, rx_channelArray)), marker='o', color='black') # plot without transparency
 
-# RX channel plot with transparency
+# plot without transparency
+# ax1.scatter(hmsArray,list(map(int, rx_channelArray)), marker='o', color='black')
+
+# rx channel plot with transparency
 maxOffset = 60
 for offsetDiv in range(10, maxOffset, 10) :  # 6 divisions from 0 to 60
     lowerbound = offsetDiv - 10
@@ -162,13 +152,13 @@ executionEnd = perf_counter()
 print(f"Plotted telemetry points in {executionEnd - executionStart} sec")
 
 
-# Channel data
+# channel data
 channeldataArray = channelDataHandler.parsefile('channelData.txt')
 channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
 channelTimeLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channeldataArray}
 channelrmsLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channeldataArray}
 
-# Calculate rms for each channel for each scan file
+# calculate rms for each channel for each scan file
 executionStart = perf_counter()
 numTotalScans = len(scanFilepathList)
 numCompleteScans = 0
@@ -187,17 +177,17 @@ for scanFilepath in scanFilepathList :
     numCompleteScans += 1
 
 
-# Display rms calculation execution time
+# display rms calculation execution time
 executionEnd = perf_counter()
 print(f"100% of RFI scans processed with execution time {executionEnd - executionStart} sec")
 
-# RMS plot formatting
+# rms plot formatting
 ax2.set_xlabel("Time (UTC HMS)")
 ax2.set_ylabel("RMS (Jy)")
 # ax2.set_ylim(0.0, 1.0) #clamp outliers
 
 
-# Plot rms over time
+# plot rms over time
 for channelData in channeldataArray :
     channelNum, freq_min, freq_max = channelData
     ax2.plot(channelTimeLists[channelNum], channelrmsLists[channelNum], color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
@@ -211,7 +201,7 @@ for channelData in channeldataArray :
 # ax2.plot(XbandTimeList, XbandrmsList, color=channelColorMap['3'], linewidth=1.0, label=f"Channel 4, 5")
 
 
-# Check for an event timestamp file
+# check for an event timestamp file
 if (numargs == 4) :
     print("Reading: " + timestamp_filepath)
     
