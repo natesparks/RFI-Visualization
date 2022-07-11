@@ -12,6 +12,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import timestampHandler
 from rfiTableHandler import rfiTableHandler
+import channelDataHandler
 
 class FieldColPair :
     def __init__(self, field, colnum) :
@@ -162,10 +163,10 @@ print(f"Plotted telemetry points in {executionEnd - executionStart} sec")
 
 
 # Channel data
-channelfreqArray = [('1', 10.70, 10.95), ('2', 10.95, 11.20), ('3', 11.20, 11.45), ('4', 11.45, 11.70), ('5', 11.70, 11.95), ('6', 11.95, 12.20), ('7', 12.20, 12.45), ('8', 12.45, 12.7)]
+channeldataArray = channelDataHandler.parsefile('channelData.txt')
 channelColorMap = {'1' : 'brown', '2' : 'black', '3' : 'crimson', '4' : 'orange', '5' : 'orangered', '6' : 'teal', '7' : 'cyan', '8' : 'blue'}
-channelTimeLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channelfreqArray}
-channelrmsLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channelfreqArray}
+channelTimeLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channeldataArray}
+channelrmsLists = {channelNum : [] for (channelNum, freq_min, freq_max) in channeldataArray}
 
 # Calculate rms for each channel for each scan file
 executionStart = perf_counter()
@@ -177,7 +178,7 @@ for scanFilepath in scanFilepathList :
         print(f"{nextExecutionMilestone} % of RFI scans processed with RMS calculations performed")
         nextExecutionMilestone += 10
     curr_rfiTableHandler = rfiTableHandler(scanFilepath)
-    channelrmsMap = curr_rfiTableHandler.calcRMSmultiChannel(channelfreqArray)  # returns array of each channel and its rms for this scan
+    channelrmsMap = curr_rfiTableHandler.calcRMSmultiChannel(channeldataArray)  # returns array of each channel and its rms for this scan
     scanDatetime = curr_rfiTableHandler.scanDatetime
     for item in channelrmsMap.items() :
         channelNum, rms = item
@@ -197,7 +198,7 @@ ax2.set_ylabel("RMS (Jy)")
 
 
 # Plot rms over time
-for channelData in channelfreqArray :
+for channelData in channeldataArray :
     channelNum, freq_min, freq_max = channelData
     ax2.plot(channelTimeLists[channelNum], channelrmsLists[channelNum], color=channelColorMap[channelNum], linewidth=1.0, label=f"Channel {channelNum}")
 
