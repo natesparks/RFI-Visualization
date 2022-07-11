@@ -1,32 +1,3 @@
-# import imageio as iio
-
-
-# #check for number of arguments
-# numargs = len(sys.argv)
-# if (numargs != 4) :
-# 	sys.exit("Usage: python3 animationProducer.py <source_directory> <target_directory> <target_filename>")
-
-# #parse args and check that directories are valid
-# sourceDir = sys.argv[1]
-# if (os.path.isdir(sourceDir) is False) :
-# 	sys.exit("Could not find source directory with name: " + sourceDir)
-# targetDir = sys.argv[2]
-# if (os.path.isdir(targetDir) is False) :
-# 	sys.exit("Could not find target directory with name: " + targetDir)
-# targetFilename = sys.argv[3]
-
-# #get image paths from source directory
-# sourcepathlist = (glob.glob(sourceDir + "/*.png"))
-
-# #make image list
-# imageList = [iio.imread(file) for file in sourcepathlist]
-
-
-# #save gif
-# targetPath = targetDir +  "/" + targetFilename + ".gif"
-# print("Saving gif: " + targetPath)
-# iio.mimwrite(targetPath, imageList)
-
 import cv2
 import numpy as np
 import glob
