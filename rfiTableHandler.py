@@ -12,7 +12,7 @@ class rfiTableHandler :
         self.__timeLinenum = 3
 
     # Parse out a frequencyList and intensityList
-    def getFreqIntensity(self, freq_min, freq_max) :
+    def getFreqIntensity(self, freq_min=0, freq_max=1000) :
         # variable declarations
         frequencyList = []
         intensityList = []
