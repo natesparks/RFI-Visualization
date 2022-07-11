@@ -4,15 +4,14 @@ import os.path
 from rfiTableHandler import rfiTableHandler
 import channelDataHandler
 
-def plotSingleStatic(filepath) :
-    # check that filepath is valid
+def plotSingleStatic(filepath, targetDirectory) :
+    # check that filepath and source directory are valid
     if (os.path.exists(filepath) is False) :
         sys.exit("Could not find file with path: " + filepath)
     if (filepath.endswith(".txt") is False) :
         sys.exit("The provided file is not a .txt file: " + filepath)
-    targetDir = sys.argv[2]
-    if (os.path.isdir(targetDir) is False) :
-        sys.exit("Could not find target directory with name: " + targetDir)
+    if (os.path.isdir(targetDirectory) is False) :
+        sys.exit("Could not find target directory with name: " + targetDirectory)
 
     # get frequency and intensity from rfiTable
     freq_readMin = 0.0
@@ -49,13 +48,14 @@ def plotSingleStatic(filepath) :
         intnum = filepath[intnumIndex:intnumIndex+3]
 
     # save figure
-    targetPath = targetDir + "/" + "scan" + scannum + "intnum" + intnum + ".png"
+    targetPath = targetDirectory + "/" + "scan" + scannum + "intnum" + intnum + ".png"
     print(f"Saving scan {targetPath}")
     plt.savefig(targetPath, bbox_inches='tight') 
     plt.close(currentFigure)
+
 
 if __name__ == '__main__' :
     #check for number of arguments
     if (len(sys.argv) != 3) :
         sys.exit("Usage: python3 singleStaticPlotter.py <filepath> <target_dir>")
-    plotSingleStatic(sys.argv[1])
+    plotSingleStatic(sys.argv[1], sys.argv[2])
